@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { RadarChart, PolarGrid, PolarAngleAxis, Radar, ResponsiveContainer, Tooltip } from 'recharts';
 
-const SHEET_URL = 'https://script.google.com/macros/s/AKfycbwHvwAM7m1RLssx-hMdKUw4BcBTmG8DzuvMzghhDC-9jtC17sDZnRTvDl-Cwyfwjq0W/exec';
+const SHEET_URL = 'https://script.google.com/macros/s/AKfycbxjRHvwjLzAxO0wYDlo6WMImEOxNYi5dHtQParuybRLNW2mqxLsDIUORZ2TFcuOCIf9/exec';
 
 const SCREENS = { INTRO: 'intro', PART0: 'part0', PART1: 'part1', EMAIL: 'email', LOADING: 'loading', FREE_RESULT: 'free_result', PAID_RESULT: 'paid_result' };
 
@@ -121,9 +121,22 @@ export default function PsychTest() {
     setScores(s);
     setScreen(SCREENS.LOADING);
     const ti = getType(s.total);
-    const payload = { nick: nick || '익명', email, marketing: marketingConsent ? '동의' : '미동의', total: s.total, type: ti.type + ' ' + ti.detail, 방어기제: s.dimScores.find(d => d.id === 'd1').score, 애착유형: s.dimScores.find(d => d.id === 'd2').score, 인지왜곡: s.dimScores.find(d => d.id === 'd3').score, 회복탄력성: s.dimScores.find(d => d.id === 'd4').score, 신체신호: s.dimScores.find(d => d.id === 'd5').score, 과도한통제: s.dimScores.find(d => d.id === 'd6').score, 자책죄책감: s.dimScores.find(d => d.id === 'd7').score };
-    PART0_Qs.forEach((_, i) => { payload['성장환경' + (i + 1)] = p0Answers['p0_' + i] || 0; });
-    DIMS.forEach(d => { d.qs.forEach((_, i) => { payload[d.name + (i + 1)] = answers[d.id + '_' + i] || 0; }); });
+    const payload = {
+      nick: nick || '익명',
+      email,
+      marketing: marketingConsent ? '동의' : '미동의',
+      total: s.total,
+      type: ti.type + ' ' + ti.detail,
+      d1: s.dimScores.find(d => d.id === 'd1').score,
+      d2: s.dimScores.find(d => d.id === 'd2').score,
+      d3: s.dimScores.find(d => d.id === 'd3').score,
+      d4: s.dimScores.find(d => d.id === 'd4').score,
+      d5: s.dimScores.find(d => d.id === 'd5').score,
+      d6: s.dimScores.find(d => d.id === 'd6').score,
+      d7: s.dimScores.find(d => d.id === 'd7').score,
+    };
+    PART0_Qs.forEach((_, i) => { payload['p0_' + i] = p0Answers['p0_' + i] || 0; });
+    DIMS.forEach(d => { d.qs.forEach((_, i) => { payload[d.id + '_' + i] = answers[d.id + '_' + i] || 0; }); });
     sendToSheet(payload);
     const topDims = [...s.dimScores].sort((a, b) => b.score - a.score).slice(0, 2);
     const prompt = '당신은 자기계발 콘텐츠 작가 라온단미입니다. 역기능 가족 환경에서 자란 사람을 위한 따뜻하고 정확한 맞춤 편지를 200자 내외 편지체로 작성해주세요.\n닉네임: ' + (nick || '당신') + '\n유형: ' + ti.type + ' ' + ti.detail + ' 총점: ' + s.total + '/140\n주요 패턴: ' + topDims.map(d => d.name + ' ' + d.score + '점').join(', ') + '\n\n1.닉네임으로 시작 2.패턴을 행동/감정으로 표현 3.따뜻하게 원인 한 문장 4.오늘 바로 할 구체적 행동 하나 5.응원 마무리\n주의: 의학용어 금지. 자기계발 코칭 톤.';
