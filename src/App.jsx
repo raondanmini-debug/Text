@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { RadarChart, PolarGrid, PolarAngleAxis, Radar, ResponsiveContainer, Tooltip } from 'recharts';
 
+const SHEET_URL = 'https://script.google.com/macros/s/AKfycbwHvwAM7m1RLssx-hMdKUw4BcBTmG8DzuvMzghhDC-9jtC17sDZnRTvDl-Cwyfwjq0W/exec';
+
 const SCREENS = { INTRO: 'intro', PART0: 'part0', PART1: 'part1', EMAIL: 'email', LOADING: 'loading', FREE_RESULT: 'free_result', PAID_RESULT: 'paid_result' };
 
 const PART0_Qs = [
@@ -30,42 +32,34 @@ function getType(t) {
   if (t <= 105) return { type: '노란불', color: '#FFA726', bg: 'rgba(230,81,0,0.15)', border: '#E65100', emoji: '🟡', detail: '경계선 회복형' };
   return { type: '빨간불', color: '#EF5350', bg: 'rgba(183,28,28,0.15)', border: '#B71C1C', emoji: '🔴', detail: '자아 재건형' };
 }
-
 function getLev(s) {
   if (s <= 8) return { label: '낮음', color: '#66BB6A' };
   if (s <= 12) return { label: '보통', color: '#FFA726' };
   if (s <= 16) return { label: '높음', color: '#FF7043' };
   return { label: '매우 높음', color: '#EF5350' };
 }
-
 function calcScores(answers) {
-  const dimScores = DIMS.map(dim => ({ 
-    id: dim.id, 
-    name: dim.name, 
-    icon: dim.icon, 
-    color: dim.color, 
-    score: dim.qs.reduce((sum, _, qi) => sum + (answers[dim.id + '_' + qi] || 0), 0), 
-    max: dim.qs.length * 5 
-  }));
+  const dimScores = DIMS.map(dim => ({ id: dim.id, name: dim.name, icon: dim.icon, color: dim.color, score: dim.qs.reduce((sum, _, qi) => sum + (answers[dim.id + '_' + qi] || 0), 0), max: dim.qs.length * 5 }));
   return { dimScores, total: dimScores.reduce((s, d) => s + d.score, 0) };
 }
-
 function getScoreCopy(total) {
   if (total <= 70) return { hook: '점수는 낮아도, 이 테스트를 시작한 이유가 있었을 거예요.', body: '아무 이유 없이 심리 독립 테스트를 클릭한 건 아니었겠죠.\n마음 한켠에 여전히 뭔가 걸리는 게 있다면, 그게 바로 지금 봐야 할 것일 수 있어요.\n\n심층 분석은 낮은 점수 안에 숨어있는 작은 균열을 짚어드려요.\n균열은 지금 작을 때 보는 게 맞아요.' };
   if (total <= 105) return { hook: '지금 당신은 회복의 경계선에 있어요.', body: '이 점수대가 사실 가장 위험해요.\n나쁘지 않네라고 넘어가기엔 패턴이 조용히 관계와 돈에 영향을 주고,\n심각하다고 느끼기엔 일상이 굴러가거든요.\n\n지금 이 패턴을 정확히 보지 않으면 3년 후에도 같은 자리예요.' };
   return { hook: '이 점수는 혼자 감당하기엔 꽤 무거운 패턴들이에요.', body: '나쁜 게 아니에요. 오래 버텨온 거예요.\n\n근데 이 패턴들, 방치하면 관계에서 돈에서 건강에서 계속 같은 방식으로 반복돼요.\n\n지금 딱 한 번만 제대로 들여다보면 그 반복의 고리를 끊을 수 있어요. 21일이면 돼요.' };
 }
-
 function useTimer(startTime) {
   const [remaining, setRemaining] = useState(3600);
   useEffect(() => {
     if (!startTime) return;
-    const iv = setInterval(() => { const el = Math.floor((Date.now() - startTime) / 1000); setRemaining(Math.max(0, 3600 - el)); }, 1000);
+    const iv = setInterval(() => { setRemaining(Math.max(0, 3600 - Math.floor((Date.now() - startTime) / 1000))); }, 1000);
     return () => clearInterval(iv);
   }, [startTime]);
   const m = String(Math.floor(remaining / 60)).padStart(2, '0');
   const s = String(remaining % 60).padStart(2, '0');
   return { display: m + ':' + s, expired: remaining === 0 };
+}
+async function sendToSheet(payload) {
+  try { await fetch(SHEET_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); } catch (e) { console.log('sheet error', e); }
 }
 
 const page = { minHeight: '100vh', background: 'linear-gradient(155deg,#0D0020 0%,#1A0535 40%,#2D1060 100%)', fontFamily: 'Pretendard,Apple SD Gothic Neo,sans-serif', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 16px' };
@@ -73,53 +67,10 @@ const wrap = { width: '100%', maxWidth: '560px' };
 const primaryBtn = { width: '100%', background: 'linear-gradient(135deg,#6A1B9A,#9C27B0)', border: 'none', borderRadius: '14px', padding: '18px', fontSize: '16px', fontWeight: 700, color: '#fff', cursor: 'pointer' };
 const ghostBtn = { width: '100%', background: 'transparent', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '12px', padding: '13px', color: 'rgba(255,255,255,0.5)', fontSize: '13px', cursor: 'pointer', marginTop: '12px' };
 const inputStyle = { width: '100%', background: 'rgba(255,255,255,0.06)', border: '1.5px solid rgba(206,147,216,0.3)', borderRadius: '10px', padding: '13px 16px', color: '#fff', fontSize: '15px', outline: 'none', boxSizing: 'border-box' };
-
 function cardStyle(anim) { return { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(206,147,216,0.2)', borderRadius: '20px', padding: '28px', marginBottom: '20px', opacity: anim ? 0 : 1, transform: anim ? 'translateY(8px)' : 'translateY(0)', transition: 'all 0.3s' }; }
-
-function btnStyle(active, color) { 
-  color = color || '#CE93D8'; 
-  return { 
-    background: active ? 'rgba(206,147,216,0.18)' : 'rgba(255,255,255,0.04)', 
-    border: '1.5px solid ' + (active ? color : 'rgba(255,255,255,0.12)'), 
-    borderRadius: '12px', 
-    padding: '14px 18px', 
-    textAlign: 'left', 
-    color: active ? '#fff' : 'rgba(255,255,255,0.75)', 
-    fontSize: '14.5px', 
-    cursor: 'pointer', 
-    display: 'flex', 
-    alignItems: 'center', 
-    gap: '12px', 
-    width: '100%' 
-  }; 
-}
-
-function circleStyle(active, color) { 
-  color = color || '#CE93D8'; 
-  return { 
-    width: '22px', 
-    height: '22px', 
-    borderRadius: '50%', 
-    border: '2px solid ' + (active ? color : 'rgba(255,255,255,0.3)'), 
-    background: active ? color : 'transparent', 
-    flexShrink: 0, 
-    display: 'flex', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    fontSize: '11px' 
-  }; 
-}
-
-function barStyle(pct, color) { 
-  color = color || '#CE93D8'; 
-  return { 
-    height: '100%', 
-    width: pct + '%', 
-    background: 'linear-gradient(90deg,' + color + ',#9C27B0)', 
-    borderRadius: '2px', 
-    transition: 'width 0.4s' 
-  }; 
-}
+function btnStyle(active, color) { color = color || '#CE93D8'; return { background: active ? 'rgba(206,147,216,0.18)' : 'rgba(255,255,255,0.04)', border: '1.5px solid ' + (active ? color : 'rgba(255,255,255,0.12)'), borderRadius: '12px', padding: '14px 18px', textAlign: 'left', color: active ? '#fff' : 'rgba(255,255,255,0.75)', fontSize: '14.5px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px', width: '100%' }; }
+function circleStyle(active, color) { color = color || '#CE93D8'; return { width: '22px', height: '22px', borderRadius: '50%', border: '2px solid ' + (active ? color : 'rgba(255,255,255,0.3)'), background: active ? color : 'transparent', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px' }; }
+function barStyle(pct, color) { color = color || '#CE93D8'; return { height: '100%', width: pct + '%', background: 'linear-gradient(90deg,' + color + ',#9C27B0)', borderRadius: '2px', transition: 'width 0.4s' }; }
 
 export default function PsychTest() {
   const [screen, setScreen] = useState(SCREENS.INTRO);
@@ -138,111 +89,46 @@ export default function PsychTest() {
   const [aiLetter, setAiLetter] = useState('');
   const [resultStartTime, setResultStartTime] = useState(null);
   const [checkedItems, setCheckedItems] = useState([]);
+  const [copied, setCopied] = useState(false);
   const timer = useTimer(resultStartTime);
   const totalQs = DIMS.reduce((a, d) => a + d.qs.length, 0);
   const answeredCount = Object.keys(answers).length;
   const progress = screen === SCREENS.PART1 ? ((dimIdx * 4 + qIdx) / totalQs) * 100 : 0;
 
-  function animate(fn) { 
-    setIsAnim(true); 
-    setTimeout(() => { 
-      fn(); 
-      setIsAnim(false); 
-      setSelOpt(null); 
-    }, 280); 
-  }
-
-  function reset() { 
-    setScreen(SCREENS.INTRO); 
-    setAnswers({}); 
-    setP0Answers({}); 
-    setP0Idx(0); 
-    setDimIdx(0); 
-    setQIdx(0); 
-    setEmail(''); 
-    setNick(''); 
-    setAiLetter(''); 
-    setScores(null); 
-    setResultStartTime(null); 
-    setCheckedItems([]); 
-  }
-
+  function animate(fn) { setIsAnim(true); setTimeout(() => { fn(); setIsAnim(false); setSelOpt(null); }, 280); }
+  function reset() { setScreen(SCREENS.INTRO); setAnswers({}); setP0Answers({}); setP0Idx(0); setDimIdx(0); setQIdx(0); setEmail(''); setNick(''); setAiLetter(''); setScores(null); setResultStartTime(null); setCheckedItems([]); setCopied(false); }
   function goBack() {
-    if (screen === SCREENS.PART0) { 
-      if (p0Idx > 0) { 
-        setP0Idx(p0Idx - 1); 
-        setSelOpt(null); 
-      } else setScreen(SCREENS.INTRO); 
-    }
-    else if (screen === SCREENS.PART1) { 
-      if (qIdx > 0) { 
-        setQIdx(qIdx - 1); 
-        setSelOpt(null); 
-      } else if (dimIdx > 0) { 
-        setDimIdx(dimIdx - 1); 
-        setQIdx(DIMS[dimIdx - 1].qs.length - 1); 
-        setSelOpt(null); 
-      } else { 
-        setScreen(SCREENS.PART0); 
-        setP0Idx(PART0_Qs.length - 1); 
-      } 
-    }
-    else if (screen === SCREENS.EMAIL) { 
-      setScreen(SCREENS.PART1); 
-      setDimIdx(DIMS.length - 1); 
-      setQIdx(DIMS[DIMS.length - 1].qs.length - 1); 
-    }
+    if (screen === SCREENS.PART0) { if (p0Idx > 0) { setP0Idx(p0Idx - 1); setSelOpt(null); } else setScreen(SCREENS.INTRO); }
+    else if (screen === SCREENS.PART1) { if (qIdx > 0) { setQIdx(qIdx - 1); setSelOpt(null); } else if (dimIdx > 0) { setDimIdx(dimIdx - 1); setQIdx(DIMS[dimIdx - 1].qs.length - 1); setSelOpt(null); } else { setScreen(SCREENS.PART0); setP0Idx(PART0_Qs.length - 1); } }
+    else if (screen === SCREENS.EMAIL) { setScreen(SCREENS.PART1); setDimIdx(DIMS.length - 1); setQIdx(DIMS[DIMS.length - 1].qs.length - 1); }
   }
+  function handleP0Select(val) { setSelOpt(val); setTimeout(() => { setP0Answers(prev => Object.assign({}, prev, { ['p0_' + p0Idx]: val })); animate(() => { if (p0Idx < PART0_Qs.length - 1) setP0Idx(p0Idx + 1); else setScreen(SCREENS.PART1); }); }, 150); }
+  function handleMainSelect(val) { setSelOpt(val); const key = DIMS[dimIdx].id + '_' + qIdx; setTimeout(() => { setAnswers(prev => Object.assign({}, prev, { [key]: val })); animate(() => { if (qIdx < DIMS[dimIdx].qs.length - 1) setQIdx(qIdx + 1); else if (dimIdx < DIMS.length - 1) { setDimIdx(dimIdx + 1); setQIdx(0); } else setScreen(SCREENS.EMAIL); }); }, 150); }
 
-  function handleP0Select(val) {
-    setSelOpt(val);
-    setTimeout(() => { 
-      setP0Answers(prev => Object.assign({}, prev, { ['p0_' + p0Idx]: val })); 
-      animate(() => { 
-        if (p0Idx < PART0_Qs.length - 1) setP0Idx(p0Idx + 1); 
-        else setScreen(SCREENS.PART1); 
-      }); 
-    }, 150);
-  }
-
-  function handleMainSelect(val) {
-    setSelOpt(val);
-    const key = DIMS[dimIdx].id + '_' + qIdx;
-    setTimeout(() => { 
-      setAnswers(prev => Object.assign({}, prev, { [key]: val })); 
-      animate(() => { 
-        if (qIdx < DIMS[dimIdx].qs.length - 1) setQIdx(qIdx + 1); 
-        else if (dimIdx < DIMS.length - 1) { 
-          setDimIdx(dimIdx + 1); 
-          setQIdx(0); 
-        } else setScreen(SCREENS.EMAIL); 
-      }); 
-    }, 150);
+  function copyScores() {
+    if (!scores) return;
+    const ti = getType(scores.total);
+    const sorted = [...scores.dimScores].sort((a, b) => b.score - a.score);
+    const text = '[' + (nick || '익명') + '] 심리 독립 테스트 결과\n유형: ' + ti.emoji + ' ' + ti.type + ' (' + ti.detail + ')\n총점: ' + scores.total + '/140\n\n' + sorted.map(d => d.icon + ' ' + d.name + ': ' + d.score + '/20 (' + getLev(d.score).label + ')').join('\n');
+    if (navigator.clipboard) { navigator.clipboard.writeText(text).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2500); }); }
+    else { const el = document.createElement('textarea'); el.value = text; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el); setCopied(true); setTimeout(() => setCopied(false), 2500); }
   }
 
   async function handleSubmit() {
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { 
-      setEmailError('올바른 이메일 주소를 입력해주세요'); 
-      return; 
-    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setEmailError('올바른 이메일 주소를 입력해주세요'); return; }
     setEmailError('');
     const s = calcScores(answers);
     setScores(s);
     setScreen(SCREENS.LOADING);
-    const topDims = [...s.dimScores].sort((a, b) => b.score - a.score).slice(0, 2);
     const ti = getType(s.total);
+    const payload = { nick: nick || '익명', email, marketing: marketingConsent ? '동의' : '미동의', total: s.total, type: ti.type + ' ' + ti.detail, 방어기제: s.dimScores.find(d => d.id === 'd1').score, 애착유형: s.dimScores.find(d => d.id === 'd2').score, 인지왜곡: s.dimScores.find(d => d.id === 'd3').score, 회복탄력성: s.dimScores.find(d => d.id === 'd4').score, 신체신호: s.dimScores.find(d => d.id === 'd5').score, 과도한통제: s.dimScores.find(d => d.id === 'd6').score, 자책죄책감: s.dimScores.find(d => d.id === 'd7').score };
+    PART0_Qs.forEach((_, i) => { payload['성장환경' + (i + 1)] = p0Answers['p0_' + i] || 0; });
+    DIMS.forEach(d => { d.qs.forEach((_, i) => { payload[d.name + (i + 1)] = answers[d.id + '_' + i] || 0; }); });
+    sendToSheet(payload);
+    const topDims = [...s.dimScores].sort((a, b) => b.score - a.score).slice(0, 2);
     const prompt = '당신은 자기계발 콘텐츠 작가 라온단미입니다. 역기능 가족 환경에서 자란 사람을 위한 따뜻하고 정확한 맞춤 편지를 200자 내외 편지체로 작성해주세요.\n닉네임: ' + (nick || '당신') + '\n유형: ' + ti.type + ' ' + ti.detail + ' 총점: ' + s.total + '/140\n주요 패턴: ' + topDims.map(d => d.name + ' ' + d.score + '점').join(', ') + '\n\n1.닉네임으로 시작 2.패턴을 행동/감정으로 표현 3.따뜻하게 원인 한 문장 4.오늘 바로 할 구체적 행동 하나 5.응원 마무리\n주의: 의학용어 금지. 자기계발 코칭 톤.';
-    try {
-      const res = await fetch('https://api.anthropic.com/v1/messages', { 
-        method: 'POST', 
-        headers: { 'Content-Type': 'application/json' }, 
-        body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1000, messages: [{ role: 'user', content: prompt }] }) 
-      });
-      const data = await res.json();
-      setAiLetter((data.content && data.content[0] && data.content[0].text) || '');
-    } catch(e) { 
-      setAiLetter((nick || '당신') + '님, 결과를 바탕으로 맞춤 가이드레터를 준비하고 있습니다.\n\n당신의 오늘을 응원합니다. — 라온단미'); 
-    }
+    try { const res = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1000, messages: [{ role: 'user', content: prompt }] }) }); const data = await res.json(); setAiLetter((data.content && data.content[0] && data.content[0].text) || ''); }
+    catch (e) { setAiLetter((nick || '당신') + '님, 결과를 바탕으로 맞춤 가이드레터를 준비하고 있습니다.\n\n당신의 오늘을 응원합니다. — 라온단미'); }
     setResultStartTime(Date.now());
     setScreen(SCREENS.FREE_RESULT);
   }
@@ -250,6 +136,7 @@ export default function PsychTest() {
   return (
     <div style={page}>
       <div style={wrap}>
+
         {screen === SCREENS.INTRO && (
           <div>
             <div style={{ textAlign: 'center', marginBottom: '28px' }}>
@@ -258,8 +145,7 @@ export default function PsychTest() {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '24px' }}>
               {CHECKLIST.map((item, i) => (
-                <div key={i} onClick={() => setCheckedItems(prev => prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i])}
-                  style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', background: checkedItems.includes(i) ? 'rgba(206,147,216,0.12)' : 'rgba(255,255,255,0.03)', border: '1.5px solid ' + (checkedItems.includes(i) ? 'rgba(206,147,216,0.5)' : 'rgba(255,255,255,0.08)'), borderRadius: '12px', padding: '14px 16px', cursor: 'pointer' }}>
+                <div key={i} onClick={() => setCheckedItems(prev => prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i])} style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', background: checkedItems.includes(i) ? 'rgba(206,147,216,0.12)' : 'rgba(255,255,255,0.03)', border: '1.5px solid ' + (checkedItems.includes(i) ? 'rgba(206,147,216,0.5)' : 'rgba(255,255,255,0.08)'), borderRadius: '12px', padding: '14px 16px', cursor: 'pointer' }}>
                   <div style={{ width: '20px', height: '20px', borderRadius: '6px', border: '2px solid ' + (checkedItems.includes(i) ? '#CE93D8' : 'rgba(255,255,255,0.25)'), background: checkedItems.includes(i) ? '#CE93D8' : 'transparent', flexShrink: 0, marginTop: '1px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px' }}>{checkedItems.includes(i) ? '✓' : ''}</div>
                   <span style={{ fontSize: '14px', color: checkedItems.includes(i) ? '#fff' : 'rgba(255,255,255,0.7)', lineHeight: 1.6 }}>{item}</span>
                 </div>
@@ -279,15 +165,13 @@ export default function PsychTest() {
             <div style={{ marginTop: '20px', padding: '14px 16px', background: 'rgba(255,200,0,0.05)', border: '1px solid rgba(255,200,0,0.15)', borderRadius: '10px', fontSize: '11.5px', color: 'rgba(255,255,255,0.4)', lineHeight: 1.7 }}>⚠️ 이 테스트는 심리 패턴 파악을 위한 자기계발 도구입니다. 의료적 진단 및 전문 심리상담을 대체하지 않습니다.</div>
           </div>
         )}
+
         {screen === SCREENS.PART0 && (
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
               <button onClick={goBack} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: '20px', padding: '0' }}>←</button>
               <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                  <span style={{ fontSize: '12px', color: '#CE93D8', letterSpacing: '2px' }}>성장 환경 체크</span>
-                  <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)' }}>{p0Idx + 1} / {PART0_Qs.length}</span>
-                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}><span style={{ fontSize: '12px', color: '#CE93D8', letterSpacing: '2px' }}>성장 환경 체크</span><span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)' }}>{p0Idx + 1} / {PART0_Qs.length}</span></div>
                 <div style={{ height: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '2px' }}><div style={barStyle(((p0Idx + 1) / PART0_Qs.length) * 100)} /></div>
               </div>
             </div>
@@ -296,23 +180,17 @@ export default function PsychTest() {
               <div style={{ fontSize: 'clamp(16px,3.5vw,19px)', fontWeight: 600, lineHeight: 1.65 }}>{PART0_Qs[p0Idx].text}</div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '9px' }}>
-              {P0_OPTS.map(opt => (
-                <button key={opt.value} style={btnStyle(selOpt === opt.value)} onClick={() => handleP0Select(opt.value)}>
-                  <span style={circleStyle(selOpt === opt.value)}>{selOpt === opt.value ? '✓' : ''}</span>{opt.label}
-                </button>
-              ))}
+              {P0_OPTS.map(opt => (<button key={opt.value} style={btnStyle(selOpt === opt.value)} onClick={() => handleP0Select(opt.value)}><span style={circleStyle(selOpt === opt.value)}>{selOpt === opt.value ? '✓' : ''}</span>{opt.label}</button>))}
             </div>
           </div>
         )}
+
         {screen === SCREENS.PART1 && (
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
               <button onClick={goBack} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: '20px', padding: '0' }}>←</button>
               <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                  <span style={{ fontSize: '12px', color: '#CE93D8', letterSpacing: '2px' }}>{answeredCount + 1} / {totalQs}</span>
-                  <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)' }}>{Math.round(progress)}%</span>
-                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}><span style={{ fontSize: '12px', color: '#CE93D8', letterSpacing: '2px' }}>{answeredCount + 1} / {totalQs}</span><span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)' }}>{Math.round(progress)}%</span></div>
                 <div style={{ height: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '2px' }}><div style={barStyle(progress, DIMS[dimIdx].color)} /></div>
               </div>
             </div>
@@ -321,17 +199,12 @@ export default function PsychTest() {
               <div style={{ fontSize: 'clamp(15px,3.5vw,18px)', fontWeight: 600, lineHeight: 1.75 }}>{DIMS[dimIdx].qs[qIdx]}</div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '9px' }}>
-              {OPTS.map(opt => (
-                <button key={opt.value} style={btnStyle(selOpt === opt.value, DIMS[dimIdx].color)} onClick={() => handleMainSelect(opt.value)}>
-                  <span style={circleStyle(selOpt === opt.value, DIMS[dimIdx].color)}>{selOpt === opt.value ? '✓' : ''}</span>{opt.label}
-                </button>
-              ))}
+              {OPTS.map(opt => (<button key={opt.value} style={btnStyle(selOpt === opt.value, DIMS[dimIdx].color)} onClick={() => handleMainSelect(opt.value)}><span style={circleStyle(selOpt === opt.value, DIMS[dimIdx].color)}>{selOpt === opt.value ? '✓' : ''}</span>{opt.label}</button>))}
             </div>
-            <div style={{ marginTop: '18px', display: 'flex', gap: '6px' }}>
-              {DIMS.map((d, i) => <div key={d.id} style={{ flex: 1, height: '4px', borderRadius: '2px', background: i < dimIdx ? d.color : i === dimIdx ? d.color + '66' : 'rgba(255,255,255,0.1)' }} />)}
-            </div>
+            <div style={{ marginTop: '18px', display: 'flex', gap: '6px' }}>{DIMS.map((d, i) => <div key={d.id} style={{ flex: 1, height: '4px', borderRadius: '2px', background: i < dimIdx ? d.color : i === dimIdx ? d.color + '66' : 'rgba(255,255,255,0.1)' }} />)}</div>
           </div>
         )}
+
         {screen === SCREENS.EMAIL && (
           <div style={{ textAlign: 'center' }}>
             <button onClick={goBack} style={Object.assign({}, ghostBtn, { width: 'auto', padding: '8px 16px', marginBottom: '20px', marginTop: 0 })}>← 이전 질문으로</button>
@@ -339,29 +212,21 @@ export default function PsychTest() {
             <h2 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '6px' }}>33문항 완료!</h2>
             <p style={{ color: 'rgba(255,255,255,0.55)', marginBottom: '24px', lineHeight: 1.7, fontSize: '14px' }}>이메일을 입력하면 무료 결과를 바로 확인할 수 있어요</p>
             <div style={{ textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '18px' }}>
-              <div>
-                <label style={{ fontSize: '13px', color: '#CE93D8', display: 'block', marginBottom: '6px' }}>닉네임 (선택)</label>
-                <input value={nick} onChange={e => setNick(e.target.value)} placeholder='예: 별빛, 익명' style={inputStyle} />
-              </div>
+              <div><label style={{ fontSize: '13px', color: '#CE93D8', display: 'block', marginBottom: '6px' }}>닉네임 (선택)</label><input value={nick} onChange={e => setNick(e.target.value)} placeholder='예: 별빛, 익명' style={inputStyle} /></div>
               <div>
                 <label style={{ fontSize: '13px', color: '#CE93D8', display: 'block', marginBottom: '6px' }}>이메일 주소 <span style={{ color: '#EF5350' }}>필수</span></label>
                 <input value={email} onChange={e => { setEmail(e.target.value); setEmailError(''); }} placeholder='example@email.com' type='email' style={Object.assign({}, inputStyle, { borderColor: emailError ? '#EF5350' : 'rgba(206,147,216,0.3)' })} />
                 {emailError && <div style={{ color: '#EF5350', fontSize: '12px', marginTop: '6px' }}>{emailError}</div>}
               </div>
               <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(206,147,216,0.15)', borderRadius: '12px', padding: '16px' }}>
-                <label style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', marginBottom: '12px' }}>
-                  <input type='checkbox' defaultChecked disabled style={{ marginTop: '2px' }} />
-                  <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', lineHeight: 1.6 }}><strong style={{ color: 'rgba(255,255,255,0.8)' }}>[필수] 개인정보 수집 이용 동의</strong><br />이메일을 수집하여 테스트 결과 발송 목적으로만 사용합니다.</span>
-                </label>
-                <label style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', cursor: 'pointer' }}>
-                  <input type='checkbox' checked={marketingConsent} onChange={e => setMarketingConsent(e.target.checked)} style={{ marginTop: '2px' }} />
-                  <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', lineHeight: 1.6 }}><strong style={{ color: 'rgba(255,255,255,0.8)' }}>[선택] 마케팅 정보 수신 동의</strong><br />신규 콘텐츠, 할인 정보를 이메일로 받겠습니다.</span>
-                </label>
+                <label style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', marginBottom: '12px' }}><input type='checkbox' defaultChecked disabled style={{ marginTop: '2px' }} /><span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', lineHeight: 1.6 }}><strong style={{ color: 'rgba(255,255,255,0.8)' }}>[필수] 개인정보 수집 이용 동의</strong><br />이메일을 수집하여 테스트 결과 발송 목적으로만 사용합니다.</span></label>
+                <label style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', cursor: 'pointer' }}><input type='checkbox' checked={marketingConsent} onChange={e => setMarketingConsent(e.target.checked)} style={{ marginTop: '2px' }} /><span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', lineHeight: 1.6 }}><strong style={{ color: 'rgba(255,255,255,0.8)' }}>[선택] 마케팅 정보 수신 동의</strong><br />신규 콘텐츠, 할인 정보를 이메일로 받겠습니다.</span></label>
               </div>
             </div>
             <button style={primaryBtn} onClick={handleSubmit}>무료 결과 확인하기 →</button>
           </div>
         )}
+
         {screen === SCREENS.LOADING && (
           <div style={{ textAlign: 'center' }}>
             <style>{'@keyframes spin { to { transform: rotate(360deg); } }'}</style>
@@ -370,10 +235,12 @@ export default function PsychTest() {
             <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '14px' }}>7가지 패턴을 종합해 맞춤 결과를 만들고 있어요</p>
           </div>
         )}
+
         {screen === SCREENS.FREE_RESULT && scores && (() => {
           const ti = getType(scores.total);
           const radarData = scores.dimScores.map(d => ({ subject: d.name, score: d.score, fullMark: 20 }));
           const sc = getScoreCopy(scores.total);
+          const sorted = [...scores.dimScores].sort((a, b) => b.score - a.score);
           return (
             <div>
               <div style={{ fontSize: '11px', letterSpacing: '3px', color: '#CE93D8', textTransform: 'uppercase', marginBottom: '16px', textAlign: 'center' }}>진단 완료 · 무료 결과</div>
@@ -382,6 +249,33 @@ export default function PsychTest() {
                 <div style={{ fontSize: '20px', fontWeight: 900, color: ti.color, marginBottom: '4px' }}>{ti.type} — {ti.detail}</div>
                 <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.55)', marginTop: '6px' }}>총점 {scores.total}점 / 140</div>
               </div>
+
+              {/* 항목별 점수 */}
+              <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(206,147,216,0.2)', borderRadius: '16px', padding: '20px', marginBottom: '18px' }}>
+                <div style={{ fontSize: '12px', color: '#CE93D8', letterSpacing: '2px', marginBottom: '18px' }}>7가지 패턴 점수 (높은 순)</div>
+                {sorted.map(d => {
+                  const lv = getLev(d.score);
+                  return (
+                    <div key={d.id} style={{ marginBottom: '16px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '7px' }}>
+                        <span style={{ fontSize: '14px', fontWeight: 600 }}>{d.icon} {d.name}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '13px', fontWeight: 700, color: 'rgba(255,255,255,0.55)' }}>{d.score} / {d.max}</span>
+                          <span style={{ background: lv.color, color: '#fff', borderRadius: '10px', padding: '2px 10px', fontSize: '11px', fontWeight: 700 }}>{lv.label}</span>
+                        </div>
+                      </div>
+                      <div style={{ height: '8px', background: 'rgba(255,255,255,0.08)', borderRadius: '4px' }}>
+                        <div style={{ height: '100%', width: ((d.score / d.max) * 100) + '%', background: lv.color, borderRadius: '4px', transition: 'width 0.6s' }} />
+                      </div>
+                    </div>
+                  );
+                })}
+                <button onClick={copyScores} style={{ marginTop: '8px', width: '100%', background: copied ? 'rgba(102,187,106,0.15)' : 'rgba(206,147,216,0.08)', border: '1px solid ' + (copied ? 'rgba(102,187,106,0.4)' : 'rgba(206,147,216,0.25)'), borderRadius: '10px', padding: '12px', color: copied ? '#A5D6A7' : 'rgba(255,255,255,0.65)', fontSize: '13px', cursor: 'pointer', transition: 'all 0.2s' }}>
+                  {copied ? '✅ 복사 완료! 카카오톡에 붙여넣기 하세요' : '📋 내 점수 텍스트로 복사하기'}
+                </button>
+              </div>
+
+              {/* 레이더 차트 */}
               <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(206,147,216,0.15)', borderRadius: '16px', padding: '18px', marginBottom: '18px' }}>
                 <div style={{ fontSize: '12px', color: '#CE93D8', letterSpacing: '2px', marginBottom: '14px' }}>7가지 패턴 분포</div>
                 <ResponsiveContainer width='100%' height={220}>
@@ -393,32 +287,15 @@ export default function PsychTest() {
                   </RadarChart>
                 </ResponsiveContainer>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' }}>
-                {[...scores.dimScores].sort((a, b) => b.score - a.score).map(d => {
-                  const lev = getLev(d.score);
-                  return (
-                    <div key={d.id} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', padding: '12px 15px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '7px' }}>
-                        <span style={{ fontSize: '13.5px', fontWeight: 600 }}>{d.icon} {d.name}</span>
-                        <span style={{ fontSize: '12.5px', fontWeight: 700, color: lev.color }}>{lev.label}</span>
-                      </div>
-                      <div style={{ height: '5px', background: 'rgba(255,255,255,0.08)', borderRadius: '3px' }}>
-                        <div style={{ height: '100%', width: ((d.score / d.max) * 100) + '%', background: lev.color, borderRadius: '3px' }} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+
               {aiLetter && (
                 <div style={{ background: 'linear-gradient(145deg,#0D0020,#2A0A40)', border: '1px solid rgba(206,147,216,0.25)', borderRadius: '14px', padding: '20px', marginBottom: '20px', position: 'relative', overflow: 'hidden' }}>
                   <div style={{ fontSize: '11px', color: '#CE93D8', letterSpacing: '2px', marginBottom: '12px' }}>라온단미의 맞춤 편지</div>
-                  <div style={{ fontSize: '14px', lineHeight: 1.9, color: 'rgba(255,255,255,0.85)', maxHeight: '80px', overflow: 'hidden', position: 'relative' }}>
-                    {aiLetter.slice(0, 60)}...
-                    <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '60px', background: 'linear-gradient(transparent,#0D0020)' }} />
-                  </div>
+                  <div style={{ fontSize: '14px', lineHeight: 1.9, color: 'rgba(255,255,255,0.85)', maxHeight: '80px', overflow: 'hidden', position: 'relative' }}>{aiLetter.slice(0, 60)}...<div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '60px', background: 'linear-gradient(transparent,#0D0020)' }} /></div>
                   <div style={{ textAlign: 'center', marginTop: '8px', fontSize: '13px', color: 'rgba(255,255,255,0.4)' }}>심층 분석에서 전문 확인 가능</div>
                 </div>
               )}
+
               {!timer.expired && (
                 <div style={{ background: 'linear-gradient(135deg,rgba(239,83,80,0.2),rgba(183,28,28,0.2))', border: '1.5px solid rgba(239,83,80,0.5)', borderRadius: '14px', padding: '16px 18px', marginBottom: '16px', textAlign: 'center' }}>
                   <div style={{ fontSize: '12px', color: '#EF5350', letterSpacing: '2px', marginBottom: '6px' }}>⏱ 테스트 완료 후 1시간 한정</div>
@@ -426,10 +303,12 @@ export default function PsychTest() {
                   <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.65)' }}>이 시간 안에 구매 시 <strong style={{ color: '#FFA726' }}>99,000원 → 69,000원</strong></div>
                 </div>
               )}
+
               <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(206,147,216,0.2)', borderRadius: '14px', padding: '20px', marginBottom: '20px' }}>
                 <div style={{ fontSize: '16px', fontWeight: 800, marginBottom: '10px', color: '#CE93D8' }}>{sc.hook}</div>
                 <div style={{ fontSize: '13.5px', color: 'rgba(255,255,255,0.72)', lineHeight: 1.85, whiteSpace: 'pre-line' }}>{sc.body}</div>
               </div>
+
               <div style={{ background: 'linear-gradient(135deg,rgba(106,27,154,0.3),rgba(156,39,176,0.2))', border: '1.5px solid rgba(206,147,216,0.4)', borderRadius: '18px', padding: '24px', marginBottom: '14px' }}>
                 <div style={{ fontSize: '12px', color: '#CE93D8', letterSpacing: '2px', marginBottom: '12px' }}>💎 심층 분석 패키지</div>
                 <div style={{ fontSize: '13.5px', color: 'rgba(255,255,255,0.65)', lineHeight: 1.8, marginBottom: '18px' }}>✅ 7가지 패턴 상세 해설 (원인 + 변화 방향)<br />✅ 라온단미 맞춤 편지 전문<br />✅ 나를 구하는 21일 전자책<br />✅ 1:1 맞춤 분석 레터 (48시간 내 발송)</div>
@@ -446,6 +325,7 @@ export default function PsychTest() {
             </div>
           );
         })()}
+
         {screen === SCREENS.PAID_RESULT && scores && (
           <div>
             <div style={{ fontSize: '11px', letterSpacing: '3px', color: '#CE93D8', textTransform: 'uppercase', marginBottom: '16px', textAlign: 'center' }}>심층 분석 · 상세 결과</div>
@@ -461,6 +341,7 @@ export default function PsychTest() {
             <button style={ghostBtn} onClick={() => setScreen(SCREENS.FREE_RESULT)}>← 무료 결과로 돌아가기</button>
           </div>
         )}
+
       </div>
     </div>
   );
