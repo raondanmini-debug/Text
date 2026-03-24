@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { RadarChart, PolarGrid, PolarAngleAxis, Radar, ResponsiveContainer, Tooltip } from 'recharts';
 
-const SHEET_URL = 'https://script.google.com/macros/s/AKfycbxjRHvwjLzAxO0wYDlo6WMImEOxNYi5dHtQParuybRLNW2mqxLsDIUORZ2TFcuOCIf9/exec';
+const SHEET_URL = 'https://script.google.com/macros/s/AKfycbyNPOJmdcGDCXhPCgrRsQ3Zu8WJaS-E266W0-R3t9M90-39vx21XrRVlfMDd-YtYl2d/exec';
 const SITE_URL = 'https://text-68n.pages.dev';
 
 const BIZ = {
