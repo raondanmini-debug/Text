@@ -292,10 +292,20 @@ function buildAnalysisData(scores,p0,care,nick,ckdArr=[]){
   return{nick:nick||'당신',type:ti.type+' '+ti.detail,p0env,p0press,caregivers:care.join(',')||'미입력',highRisk:highRisk.join(', ')||'없음',lowRes:lowRes.join(', ')||'없음',highRes:highRes.join(', ')||'없음',allLev,paradox,patternName:ptn.name,patternSub:ptn.sub,ptn,introChecklist:ckdArr||[]};
 }
  
+// ── API 키 설정 ──
+// 클로드 아티팩트: 키 없이 자동 동작
+// Vercel/Cloudflare 배포: 아래 API_KEY에 직접 입력하거나
+//   vite.config.js define으로 주입 (VITE_ANTHROPIC_KEY 환경변수)
+const API_KEY = import.meta.env.VITE_ANTHROPIC_KEY || '';
+const API_HEADERS = {'Content-Type':'application/json',...(API_KEY?{'x-api-key':API_KEY,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'}:{})};
+ 
 async function callClaude(prompt,maxTokens=600){
-  const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:maxTokens,messages:[{role:'user',content:prompt}]})});
-  const d=await r.json();
-  return d.content?.[0]?.text||'';
+  try{
+    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:API_HEADERS,body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:maxTokens,messages:[{role:'user',content:prompt}]})});
+    const d=await r.json();
+    if(d.error){console.warn('callClaude 에러:',d.error);return '';}
+    return d.content?.[0]?.text||'';
+  }catch(e){console.error('callClaude 실패:',e);return '';}
 }
  
 // ── 체크리스트 텍스트 맵 (0-indexed → 표시용) ──
@@ -406,7 +416,7 @@ G: button_text는 "왜 이러는지 처음으로 알기" 고정.`;
  
   const r=await fetch('https://api.anthropic.com/v1/messages',{
     method:'POST',
-    headers:{'Content-Type':'application/json'},
+    headers:API_HEADERS,
     body:JSON.stringify({
       model:'claude-sonnet-4-6',
       max_tokens:1200,
@@ -415,6 +425,7 @@ G: button_text는 "왜 이러는지 처음으로 알기" 고정.`;
     })
   });
   const d=await r.json();
+  if(d.error){console.warn('generateFreeInsight 에러:',d.error);return null;}
   const text=d.content?.[0]?.text||'';
   try{const clean=text.replace(/```json[\s\S]*?```|```/g,'').trim();return JSON.parse(clean);}
   catch{console.error('Free insight parse fail:',text.slice(0,200));return null;}
@@ -443,7 +454,7 @@ async function callSection(userPrompt, maxTokens=2500, retries=2){
     try{
       const r=await fetch('https://api.anthropic.com/v1/messages',{
         method:'POST',
-        headers:{'Content-Type':'application/json'},
+        headers:API_HEADERS,
         body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:maxTokens,system:PAID_SYSTEM,messages:[{role:'user',content:userPrompt}]})
       });
       const d=await r.json();
@@ -955,23 +966,32 @@ export default function App(){
     if(!agreed){setErr('개인정보 수집 이용에 동의해주세요');return;}
     setErr('');
     const s=calcScores(ans);setScores(s);setSc(SC.LOADING);
-    const aData=buildAnalysisData(s,p0,care,nick,ckd);
-    const pl={nick:nick||'익명',email,marketing:mkt?'동의':'미동의',total:s.total,maxTotal,type:getType(s.total).type,caregivers:care.join(','),patternName:aData.patternName,intro_checklist:ckd.map(i=>i+1).join(',')};
-    P0Q.forEach((_,i)=>{pl['p0_'+i]=p0['p0_'+i]||0;});
-    DIMS.forEach(d=>{d.qs.forEach((_,i)=>{pl[d.id+'_'+i]=ans[d.id+'_'+i]||0;});});
-    sheet(pl);
-    const fd=await generateFreeInsight(aData);
-    setFreeData({...fd,analysisData:aData});
-    setSc(SC.RESULT);
+    try{
+      const aData=buildAnalysisData(s,p0,care,nick,ckd);
+      const pl={nick:nick||'익명',email,marketing:mkt?'동의':'미동의',total:s.total,maxTotal,type:getType(s.total).type,caregivers:care.join(','),patternName:aData.patternName,intro_checklist:ckd.map(i=>i+1).join(',')};
+      P0Q.forEach((_,i)=>{pl['p0_'+i]=p0['p0_'+i]||0;});
+      DIMS.forEach(d=>{d.qs.forEach((_,i)=>{pl[d.id+'_'+i]=ans[d.id+'_'+i]||0;});});
+      sheet(pl);
+      // AI 인사이트 생성 — 실패해도 결과 페이지로 이동
+      let fd=null;
+      try{fd=await generateFreeInsight(aData);}catch(e){console.warn('무료 인사이트 생성 실패:',e);}
+      setFreeData(fd?{...fd,analysisData:aData}:{analysisData:aData});
+    }catch(e){console.error('submit 오류:',e);}
+    finally{setSc(SC.RESULT);}  // 어떤 경우에도 결과 페이지로
   }
  
   async function handlePay(){
     if(SIM_MODE||true){ // 결제 연동 전: 시뮬레이션
       setSc(SC.PAID_LOADING);
-      const aData=freeData?.analysisData||buildAnalysisData(scores,p0,care,nick);
-      const pd=await generatePaidResult(aData);
-      setPaidData({...pd,analysisData:aData});
-      setSc(SC.PAID);
+      try{
+        const aData=freeData?.analysisData||buildAnalysisData(scores,p0,care,nick,ckd);
+        const pd=await generatePaidResult(aData);
+        setPaidData(pd?{...pd,analysisData:aData}:{analysisData:aData});
+      }catch(e){
+        console.error('유료 결과 생성 오류:',e);
+        const aData=freeData?.analysisData||buildAnalysisData(scores,p0,care,nick,ckd);
+        setPaidData({analysisData:aData});
+      }finally{setSc(SC.PAID);}
     }
   }
  
@@ -1746,3 +1766,4 @@ return(
     </div>
   );
 }
+ 
